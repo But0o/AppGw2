@@ -7,14 +7,11 @@ import com.example.gw2.data.model.ItemDetail
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlin.random.Random
 
-class HomeViewModel(
-    private val api: IGw2Api
-) : ViewModel() {
+class HomeViewModel(private val api: IGw2Api) : ViewModel() {
 
-    private val _items = MutableStateFlow<List<ItemDetail>>(emptyList())
-    val items: StateFlow<List<ItemDetail>> = _items
+    private val _recommendedItems = MutableStateFlow<List<ItemDetail>>(emptyList())
+    val recommendedItems: StateFlow<List<ItemDetail>> = _recommendedItems
 
     init {
         loadRandomItems()
@@ -26,9 +23,8 @@ class HomeViewModel(
                 val allIds = api.getAllItemIds()
                 val randomIds = allIds.shuffled().take(10)
                 val items = api.getItemsByIds(randomIds.joinToString(","))
-                _items.value = items
+                _recommendedItems.value = items
             } catch (e: Exception) {
-                // log error
                 e.printStackTrace()
             }
         }

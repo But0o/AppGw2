@@ -3,8 +3,6 @@ package com.example.gw2.data
 import com.example.gw2.data.api.IGw2Api
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import kotlin.getValue
-import kotlin.jvm.java
 
 object RetrofitInstance {
     val api: IGw2Api by lazy {

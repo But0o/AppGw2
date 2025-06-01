@@ -56,10 +56,11 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.coil.compose)
-    implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     implementation(libs.gson)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.material3)
+    implementation(libs.retrofit)
+    implementation(libs.gsonConverter)
 
 }

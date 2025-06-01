@@ -28,18 +28,16 @@ import com.example.gw2.utils.ItemViewModel
 fun HomeScreen(
     homeViewModel: HomeViewModel,
     itemViewModel: ItemViewModel,
-    onItemClick: (Int) -> Unit
+    onItemClick: (Int) -> Unit,
+    onProfileClick: () -> Unit
 ) {
-    // Obtenemos los ítems recomendados del HomeViewModel
+    // Observamos estados de ViewModels
     val recommendedItems by homeViewModel.recommendedItems.collectAsState()
-
-    // Estados que voy a mostrar en pantalla
+    val searchQuery by itemViewModel.searchQuery.collectAsState()
     val searchResults by itemViewModel.searchResults.collectAsState()
 
-    // Un estado local para el texto que escribe el usuario, antes de disparar la búsqueda
+    // Estado local para controlar la búsqueda
     var localQuery by remember { mutableStateOf("") }
-
-    // Flag que indica si ya se ejecutó una búsqueda alguna vez
     var hasSearched by remember { mutableStateOf(false) }
 
     Column(
@@ -47,20 +45,18 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // ───────────────────────────────────────
-        // 1) Barra de búsqueda con ícono y acción “Enter”
+        // ───────────────────────────────────────────────────────────
+        // 1) Barra de búsqueda
         OutlinedTextField(
             value = localQuery,
             onValueChange = { newText ->
                 localQuery = newText
-                // Nota: no disparamos la búsqueda aquí. Solo actualizamos localQuery.
             },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Buscar ítem...") },
             singleLine = true,
             trailingIcon = {
                 IconButton(onClick = {
-                    // Al pulsar la lupa, si hay al menos 3 caracteres, lanzamos la búsqueda
                     if (localQuery.trim().length >= 3) {
                         itemViewModel.updateSearchQuery(localQuery.trim())
                         hasSearched = true
@@ -74,7 +70,6 @@ fun HomeScreen(
             ),
             keyboardActions = KeyboardActions(
                 onSearch = {
-                    // Al presionar “Search” en el teclado, lanzamos la búsqueda si hay >= 3 caracteres
                     if (localQuery.trim().length >= 3) {
                         itemViewModel.updateSearchQuery(localQuery.trim())
                         hasSearched = true
@@ -85,11 +80,10 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ───────────────────────────────────────
-        // 2) Si ya se buscó (hasSearched == true), mostramos los resultados
+        // ───────────────────────────────────────────────────────────
+        // 2) Si se buscó, muestro los resultados en lista vertical
         if (hasSearched) {
             if (searchResults.isEmpty()) {
-                // No se encontraron resultados
                 Text(
                     text = "No se encontraron resultados",
                     fontSize = 18.sp,
@@ -103,8 +97,8 @@ fun HomeScreen(
                 }
             }
         }
-        // ───────────────────────────────────────
-        // 3) Si aún no se buscó (hasSearched == false), mostramos los carruseles
+        // ───────────────────────────────────────────────────────────
+        // 3) Si no se buscó, muestro carruseles de recomendados/favoritos
         else {
             Text(
                 text = "🎯 Objetos Recomendados",
@@ -112,7 +106,6 @@ fun HomeScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -130,15 +123,13 @@ fun HomeScreen(
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
+                // De momento no hay favoritos, se deja vacío
                 val emptyList: List<ItemDetail> = emptyList()
-                items(emptyList) {
-                    // Placeholder de favoritos vacío (o cambiá a tus favoritos reales)
-                }
+                items(emptyList) { /* placeholder */ }
             }
         }
     }
@@ -163,7 +154,11 @@ fun ItemRow(item: ItemDetail, onItemClick: (Int) -> Unit) {
                 .padding(end = 8.dp)
         )
         Column {
-            Text(text = item.name, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            Text(
+                text = item.name,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium
+            )
             Text(
                 text = if (item.type == "Armor" || item.type == "Weapon") {
                     "${item.type} - ${item.details?.type ?: ""}"
@@ -183,7 +178,9 @@ fun ItemCard(item: ItemDetail, onItemClick: (Int) -> Unit) {
         modifier = Modifier
             .width(140.dp)
             .clickable { onItemClick(item.id) },
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {

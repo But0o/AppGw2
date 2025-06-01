@@ -3,13 +3,11 @@ package com.example.gw2
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.gw2.data.RetrofitInstance
 import com.example.gw2.data.repository.ItemRepository
-import com.example.gw2.presentation.MainAppContent
+import com.example.gw2.navigation.MainNavHost
 import com.example.gw2.presentation.home.HomeViewModel
 import com.example.gw2.presentation.home.HomeViewModelFactory
 import com.example.gw2.presentation.screens.LoadingScreen
@@ -22,33 +20,35 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             Gw2Theme {
-                // 1) Instanciamos el ItemViewModel y HomeViewModel
+                // Instanciamos los ViewModels
                 val itemViewModel: ItemViewModel = viewModel(
-                    factory = ItemViewModelFactory(ItemRepository(RetrofitInstance.api))
+                    factory = ItemViewModelFactory(
+                        ItemRepository(RetrofitInstance.api)
+                    )
                 )
                 val homeViewModel: HomeViewModel = viewModel(
                     factory = HomeViewModelFactory(RetrofitInstance.api)
                 )
 
-                // 2) Observamos los estados de carga
+                // Estados para controlar la carga de todos los ítems al inicio
                 val isLoading by itemViewModel.isLoading.collectAsState()
                 val progress by itemViewModel.loadingProgress.collectAsState()
                 val total by itemViewModel.totalItems.collectAsState()
 
-                // 3) En el primer frame, lanzamos la descarga global
+                // Lanzamos la descarga de ítems sólo una vez cuando la UI se monta
                 LaunchedEffect(Unit) {
                     itemViewModel.loadAllItemsAtStartup()
                 }
 
-                // 4) Mostramos LoadingScreen mientras isLoading == true
+                // Mientras esté cargando, muestro el LoadingScreen
                 if (isLoading) {
                     LoadingScreen(
                         currentCount = progress,
                         totalCount = total
                     )
                 } else {
-                    // 5) Una vez cargado, mostramos la UI normal
-                    MainAppContent(
+                    // Una vez terminada la carga, muestro la app principal con NavHost+BottomBar
+                    MainNavHost(
                         itemViewModel = itemViewModel,
                         homeViewModel = homeViewModel
                     )

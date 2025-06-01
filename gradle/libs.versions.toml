@@ -19,6 +19,7 @@ coil = "2.7.0"
 composeBom = "2024.09.00"
 retrofit = "2.9.0"
 gson = "2.10.1"
+comGoogleGmsGoogleServicesGradlePlugin = "4.4.2"
 
 
 [libraries]
@@ -48,6 +49,7 @@ retrofit-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref 
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }
 gsonConverter = { module = "com.squareup.retrofit2:converter-gson", version.ref = "retrofit" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+com-google-gms-google-services-gradle-plugin = { group = "com.google.gms.google-services", name = "com.google.gms.google-services.gradle.plugin", version.ref = "comGoogleGmsGoogleServicesGradlePlugin" }
 
 
 [plugins]

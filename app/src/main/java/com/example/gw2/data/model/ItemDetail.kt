@@ -1,3 +1,5 @@
+// app/src/main/java/com/example/gw2/data/model/ItemDetail.kt
+
 package com.example.gw2.data.model
 
 data class ItemDetail(
@@ -12,12 +14,17 @@ data class ItemDetail(
 )
 
 data class ItemDetails(
-    val type: String? = null,
-    val damage_type: String? = null,
-    val min_power: Int? = null,
-    val max_power: Int? = null,
+    val type: String? = null,          // subtipo de arma/armadura
+    val damage_type: String? = null,   // si es arma
+    val min_power: Int? = null,        // si es arma
+    val max_power: Int? = null,        // si es arma
+    val defense: Int? = null,          // si es armadura
+
     val infix_upgrade: InfixUpgrade? = null,
-    val crafting: Crafting? = null
+
+    // NOTA: Los “ingredients” de receta ya no irán aquí,
+    //       porque la API los provee desde /v2/recipes/{id}.
+    // val ingredients: List<CraftingIngredient>? = null // (ya no lo necesitamos)
 )
 
 data class InfixUpgrade(
@@ -27,14 +34,4 @@ data class InfixUpgrade(
 data class ItemAttribute(
     val attribute: String,
     val modifier: Int
-)
-
-data class Crafting(
-    val ingredients: List<CraftingIngredient>
-)
-
-data class CraftingIngredient(
-    val name: String,
-    val icon: String,
-    val count: Int
 )

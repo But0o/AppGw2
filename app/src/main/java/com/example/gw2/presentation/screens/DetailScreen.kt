@@ -1,186 +1,327 @@
+// app/src/main/java/com/example/gw2/presentation/screens/DetailScreen.kt
+
 package com.example.gw2.presentation.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.example.gw2.data.model.CraftingIngredient
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.rememberAsyncImagePainter
+import com.example.gw2.data.RetrofitInstance
 import com.example.gw2.data.model.ItemDetail
-import com.example.gw2.utils.ItemViewModel
-import kotlinx.coroutines.launch
+import com.example.gw2.data.model.RecipeIngredient
+import com.example.gw2.utils.DetailViewModel
+
+/**
+ * DetailScreen: muestra los campos del ítem y, si es Recipe, lista los ingredientes obtenidos
+ * desde /v2/recipes/{id}.
+ */
+@Composable
+fun DetailScreen(itemId: String) {
+    // 1) Creamos el DetailViewModel
+    val detailViewModel: DetailViewModel = viewModel(
+        factory = DetailViewModel.Factory(RetrofitInstance.api)
+    )
+    // 2) Observamos el estado de UiState
+    val uiState by detailViewModel.itemDetailState.collectAsState()
+
+    // 3) Al arrancar, solicitamos la carga del ítem
+    LaunchedEffect(itemId) {
+        val idInt = itemId.toIntOrNull() ?: 0
+        if (idInt > 0) {
+            detailViewModel.loadItemById(idInt)
+        }
+    }
+
+    // 4) Renderizamos Loading / Error / Success
+    when (uiState) {
+        is DetailViewModel.UiState.Loading -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFEEEEEE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Cargando detalle…",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+        is DetailViewModel.UiState.Error -> {
+            val message = (uiState as DetailViewModel.UiState.Error).errorMessage
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFFFEEEE)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Error al cargar detalle:\n$message",
+                    color = Color.Red,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        }
+        is DetailViewModel.UiState.Success -> {
+            // 5) Si es Success, extraemos item y lista de ingredientes (puede ser null)
+            val successState = uiState as DetailViewModel.UiState.Success
+            DetailContent(
+                item = successState.item,
+                recipeIngredients = successState.recipeIngredients
+            )
+        }
+    }
+}
+
 
 @Composable
-fun DetailScreen(
-    itemId: String,
-    itemViewModel: ItemViewModel
+private fun DetailContent(
+    item: ItemDetail,
+    recipeIngredients: List<RecipeIngredient>? // si no es Recipe o no tiene ingredientes, será null
 ) {
-    // Convertimos itemId a Int para pasarlo al ViewModel
-    val itemIdInt = itemId.toIntOrNull()
-
-    // Recibimos los StateFlow y los convertimos a estados Compose
-    val itemDetailState by itemViewModel.itemDetail.collectAsState()
-    val craftingIngredientsState by itemViewModel.craftingIngredients.collectAsState()
-
-    // Hasta que no tengamos un ID válido, no hacemos nada
-    LaunchedEffect(itemIdInt) {
-        itemIdInt?.let {
-            itemViewModel.loadItemById(it)
-        }
-    }
-
-    // Si no llegó todavía itemDetail, mostramos un indicador de carga
-    if (itemDetailState == null) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-        return
-    }
-
-    // Ya tenemos un ItemDetail no nulo
-    val item: ItemDetail = itemDetailState!!
-
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(16.dp)
     ) {
-        // ** Sección de imagen y datos principales **
-        item {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                // Imagen redondeada
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(item.icon)
-                        .crossfade(true)
-                        .build(),
+        // ————————— 1) Tarjeta Superior: Imagen + Nombre + Tipo/Subtipo + Nivel —————————
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(200.dp),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = item.icon),
                     contentDescription = item.name,
-                    contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(150.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
 
-                Text(
-                    text = item.name,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = "Tipo: ${item.type}", fontSize = 18.sp)
-                item.details?.type?.let { subtype ->
-                    Text(text = "Subtipo: $subtype", fontSize = 18.sp)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Rareza: ${item.rarity}", fontSize = 18.sp)
-                item.game_types?.let { gameTypes ->
+                Column {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Juego: ${gameTypes.joinToString(" - ")}", fontSize = 18.sp)
-                }
-                item.details?.damage_type?.let { dmgType ->
+                    Text(
+                        text = buildString {
+                            append(item.type)
+                            item.details?.type?.let { subtype ->
+                                append(" – $subtype")
+                            }
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.DarkGray
+                    )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Daño: $dmgType", fontSize = 18.sp)
+                    Text(
+                        text = "Nivel requerido: ${item.level}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // ————————— 2) Tarjeta Intermedia: Rareza + Tipo de Juego + (Daño/Poder/Defensa) + Atributos —————————
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                // a) Rareza
                 Text(
-                    text = "Poder: ${item.details?.min_power ?: "-"} - ${item.details?.max_power ?: "-"}",
-                    fontSize = 18.sp
+                    text = "Rareza: ${item.rarity.replaceFirstChar { it.uppercaseChar() }}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
                 )
 
-                // Atributos (infix_upgrade) si existen
-                item.details?.infix_upgrade
-                    ?.attributes
-                    ?.takeIf { it.isNotEmpty() }
-                    ?.let { attrs ->
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(text = "Atributos:", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            attrs.forEach { attr ->
-                                AssistChip(
-                                    onClick = { /* Acciones opcionales */ },
-                                    label = { Text("${attr.attribute} +${attr.modifier}") }
-                                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // b) Tipo de juego
+                val tipos = item.game_types
+                    ?.joinToString(separator = " – ") { it.replaceFirstChar { c -> c.uppercaseChar() } }
+                    ?: "No disponible"
+                Text(
+                    text = "Tipo de juego: $tipos",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                // c) Sección “Daño / Poder / Defensa” (solo si alguno existe)
+                val details = item.details
+                val hasDamage = details?.damage_type != null
+                val hasPower = (details?.min_power != null && details.max_power != null)
+                val hasDefense = details?.defense != null
+
+                if (hasDamage || hasPower || hasDefense) {
+                    if (hasDamage) {
+                        val dmg = details!!.damage_type!!
+                        Text(
+                            text = "Tipo de daño: ${dmg.replaceFirstChar { it.uppercaseChar() }}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                    if (hasPower) {
+                        val minPower = details!!.min_power!!
+                        val maxPower = details.max_power!!
+                        Text(
+                            text = "Poder: $minPower – $maxPower",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                    if (hasDefense) {
+                        val def = details!!.defense!!
+                        Text(
+                            text = "Defensa: $def",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+                }
+
+                // d) Atributos (Infix Upgrade)
+                details?.infix_upgrade?.attributes?.let { attributesList ->
+                    if (attributesList.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Column {
+                            attributesList.forEach { attr ->
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "${attr.attribute.replaceFirstChar { it.uppercaseChar() }} ${attr.modifier}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
                             }
                         }
                     }
+                }
             }
         }
 
-        // ** Sección de ingredientes de crafteo **
-        if (craftingIngredientsState.isNotEmpty()) {
-            item {
-                Spacer(modifier = Modifier.height(24.dp))
-                Text(
-                    text = "🔧 Ingredientes de Crafteo",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+        Spacer(modifier = Modifier.height(16.dp))
 
-            items(craftingIngredientsState) { ingredient ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF0F0F0)),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
-                    ) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(ingredient.icon)
-                                .crossfade(true)
-                                .build(),
-                            contentDescription = ingredient.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
+        // ————————— 3) Tarjeta Inferior: Ingredientes de Crafteo (solo si es Recipe y hay ingredientes) —————————
+        if (!recipeIngredients.isNullOrEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFD0D0D0))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Ingredientes de crafteo:",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Spacer(modifier = Modifier.width(12.dp))
+                    // Fragmento completo para sustituir el “Row” de cada ingrediente en DetailContent
+                    recipeIngredients!!.forEach { ingr ->
+                        // `itemDetailState` para este ingrediente:
+                        val ingredienteDetail by produceState<ItemDetail?>(initialValue = null, ingr.item_id) {
+                            // Esta coroutine se ejecuta la primera vez y cada vez que `ingr.item_id` cambie
+                            try {
+                                val detalleIngrediente = RetrofitInstance.api.getItemById(ingr.item_id)
+                                value = detalleIngrediente
+                            } catch (e: Exception) {
+                                // Si falla la petición, dejamos value = null (quedará “Cargando…” o puedes mostrar un error)
+                                value = null
+                            }
+                        }
 
-                        Column {
-                            Text(
-                                text = ingredient.name,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = "Cantidad: ${ingredient.count}",
-                                fontSize = 16.sp,
-                                color = Color.Gray
-                            )
+                        // Si aún no se cargó, mostramos un Row con texto “Cargando…”
+                        if (ingredienteDetail == null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Cargando ingrediente ${ingr.item_id}…",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        } else {
+                            // Ya tenemos `ingredienteDetail` con ícono y nombre
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // 1) Imagen del ingrediente
+                                Image(
+                                    painter = rememberAsyncImagePainter(model = ingredienteDetail!!.icon),
+                                    contentDescription = "Ícono de ${ingredienteDetail!!.name}",
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(RoundedCornerShape(6.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                // 2) Nombre y cantidad
+                                Column {
+                                    Text(
+                                        text = ingredienteDetail!!.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "Cantidad: ${ingr.count}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
                         }
                     }
+
                 }
             }
         }

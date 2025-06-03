@@ -3,6 +3,7 @@ package com.example.gw2.data.api
 import com.example.gw2.data.model.ItemDetail
 import com.example.gw2.data.model.RecipeResponse
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface IGw2Api {
@@ -20,13 +21,8 @@ interface IGw2Api {
         @Query("id") id: Int
     ): ItemDetail
 
-    @GET("v2/recipes/search")
-    suspend fun getRecipeByOutputItemId(
-        @Query("output") itemId: Int
-    ): List<Int>
-
-    @GET("v2/recipes")
+    @GET("v2/recipes/{id}")
     suspend fun getRecipeById(
-        @Query("ids") ids: String
-    ): List<RecipeResponse>
+        @Path("id") id: Int
+    ): RecipeResponse
 }

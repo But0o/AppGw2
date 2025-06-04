@@ -27,7 +27,7 @@ class ItemRepository(val api: IGw2Api) {
                 // 1) Pedimos todos los IDs
                 val allIds = api.getAllItemIds()
                 // 2) Dividimos en trozos de 200 para no explotar la URL
-                val chunkedIds = allIds.chunked(200).take(8)
+                val chunkedIds = allIds.chunked(200).take(100)
                 val allItems = mutableListOf<ItemDetail>()
                 var loaded = 0
 

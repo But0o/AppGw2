@@ -39,7 +39,7 @@ class SplashViewModel(
                 _totalCount.value = allIds.size
 
                 // 2) Partir en chunks de 200
-                val chunkedIds = allIds.chunked(200).take(8)
+                val chunkedIds = allIds.chunked(200).take(100)
 
                 var processed = 0
                 // 3) Por cada chunk, pedimos detalles y actualizamos processed

@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.gw2.presentation.home.HomeScreen
 import com.example.gw2.presentation.home.HomeViewModel
 import com.example.gw2.presentation.screens.DetailScreen
 import com.example.gw2.utils.ItemViewModel
@@ -16,6 +15,7 @@ import com.example.gw2.data.repository.ItemRepository
 import com.example.gw2.data.RetrofitInstance
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import com.example.gw2.presentation.home.HomeScreen
 
 @Composable
 fun MainNavHost(
@@ -47,3 +47,4 @@ fun MainNavHost(
         }
     }
 }
+

@@ -21,7 +21,7 @@ class DetailViewModel(private val api: IGw2Api) : ViewModel() {
         object Loading : UiState()
         data class Success(
             val item: ItemDetail,
-            val recipeIngredients: List<RecipeIngredient>?
+            val recipeIngredients: List<RecipeIngredient>?,
         ) : UiState()
         data class Error(val errorMessage: String) : UiState()
     }

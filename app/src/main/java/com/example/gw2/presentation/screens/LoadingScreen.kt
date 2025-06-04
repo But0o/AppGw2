@@ -13,6 +13,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.font.FontWeight
 import com.example.gw2.R
 
+/**
+ * LoadingScreen: muestra un logo en el centro + texto “Farmeando Objetos”
+ * con currentCount / totalCount. Se usará como pantalla splash.
+ *
+ * currentCount y totalCount provienen de SplashViewModel.
+ */
 @Composable
 fun LoadingScreen(
     currentCount: Int,
@@ -23,7 +29,7 @@ fun LoadingScreen(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // Tu logo
+            // Logo de GW2
             Image(
                 painter = painterResource(id = R.drawable.ic_gw2_logo),
                 contentDescription = "Logo Guild Wars 2",

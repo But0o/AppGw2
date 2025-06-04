@@ -1,59 +1,67 @@
+// app/src/main/java/com/example/gw2/presentation/MainAppContent.kt
+
 package com.example.gw2.presentation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.gw2.data.RetrofitInstance
-import com.example.gw2.data.repository.ItemRepository
 import com.example.gw2.navigation.Navigation
 import com.example.gw2.presentation.components.BottomNavigationBar
-import com.example.gw2.presentation.home.HomeViewModel
-import com.example.gw2.presentation.home.HomeViewModelFactory
-import com.example.gw2.utils.ItemViewModel
-import com.example.gw2.utils.ItemViewModelFactory
+import com.example.gw2.utils.SessionManager
+import com.google.firebase.auth.FirebaseAuth
 
-/**
- * Este composable crea el NavController, instancia los ViewModels
- * y muestra el Scaffold con su BottomNavigationBar.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppContent() {
-    // 1) Creamos el NavController
     val navController = rememberNavController()
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val showBottomBar = currentRoute == "home" || currentRoute == "profile"
 
-    // 2) Observamos la ruta actual para decidir si mostramos u ocultamos la BottomBar
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val auth = FirebaseAuth.getInstance()
 
-    // 3) Instanciamos ambos ViewModels
-    val itemViewModel: ItemViewModel = viewModel(
-        factory = ItemViewModelFactory(ItemRepository(RetrofitInstance.api))
-    )
-    val homeViewModel: HomeViewModel = viewModel(
-        factory = HomeViewModelFactory(RetrofitInstance.api)
-    )
+    // Listener para detectar si hacen signOut “desde afuera” y forzamos volver a login
+    DisposableEffect(auth) {
+        val listener = FirebaseAuth.AuthStateListener { firebase ->
+            val user = firebase.currentUser
+            if (user == null) {
+                SessionManager.clear()
+                navController.navigate("login") {
+                    popUpTo(0) { inclusive = true }
+                }
+            } else {
+                SessionManager.userId = user.uid
+                SessionManager.email = user.email
+                SessionManager.isGuest = false
+            }
+        }
+        auth.addAuthStateListener(listener)
+        onDispose {
+            auth.removeAuthStateListener(listener)
+        }
+    }
 
-    // 4) Scaffold: aquí pasamos itemViewModel a BottomNavigationBar
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            // Ocultamos la BottomBar cuando la ruta sea "login"
-            if (currentRoute != "login") {
-                BottomNavigationBar(
-                    navController = navController,
-                    itemViewModel = itemViewModel
-                )
+            if (showBottomBar) {
+                BottomNavigationBar(navController = navController)
             }
         }
     ) { paddingValues ->
-        // 5) Llamamos a Navigation, que contiene nuestro NavHost
         Navigation(
             navController = navController,
             padding = paddingValues
         )
+    }
+
+    BackHandler {
+        if (currentRoute == "home" || currentRoute == "profile") {
+            navController.popBackStack()
+        }
     }
 }

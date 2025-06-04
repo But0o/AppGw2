@@ -1,5 +1,8 @@
+// app/src/main/java/com/example/gw2/presentation/home/HomeScreen.kt
+
 package com.example.gw2.presentation.home
 
+import android.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.gw2.data.model.ItemDetail
+import com.example.gw2.presentation.components.SearchBar
 import com.example.gw2.utils.ItemViewModel
 
 @Composable
@@ -42,16 +46,15 @@ fun HomeScreen(
             .padding(16.dp)
     ) {
         // 1) Barra de búsqueda
-        TextField(
-            value = searchQuery,
-            onValueChange = { itemViewModel.updateSearchQuery(it) },
-            label = { Text("Buscar ítem...", fontSize = 18.sp) },
-            textStyle = LocalTextStyle.current.copy(fontSize = 18.sp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+        SearchBar(
+            query = searchQuery,
+            onQueryChange = { itemViewModel.updateSearchQuery(it) },
+            onSearch = { /* Podrías forzar la búsqueda manualmente si quisieras */
+                // Por ejemplo, aquí podrías llamar a itemViewModel.searchItems(searchQuery)
+                // (pero si ya usas updateSearchQuery para cada cambio de texto, probablemente
+                //  no necesites hacer nada extra aquí)
+            }
         )
-
         Spacer(modifier = Modifier.height(16.dp))
 
         if (searchQuery.isNotEmpty()) {
@@ -87,7 +90,7 @@ fun HomeScreen(
             LazyRow(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(240.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(recommendedItems) { item ->
@@ -124,7 +127,7 @@ fun HomeScreen(
 fun ItemCard(item: ItemDetail, onClick: (Int) -> Unit) {
     Card(
         modifier = Modifier
-            .width(160.dp)
+            .width(200.dp)
             .fillMaxHeight()
             .clickable { onClick(item.id) },
         shape = MaterialTheme.shapes.large,
@@ -134,19 +137,22 @@ fun ItemCard(item: ItemDetail, onClick: (Int) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
                 painter = rememberAsyncImagePainter(item.icon),
                 contentDescription = item.name,
                 modifier = Modifier
-                    .size(100.dp)
-                    .clip(MaterialTheme.shapes.medium)
+                    .size(170.dp)
+                    .clip(MaterialTheme.shapes.medium),
+                alignment = Alignment.Center
+
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = item.name,
                 style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp),
+                fontWeight = FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Left,
                 maxLines = 2
             )
         }

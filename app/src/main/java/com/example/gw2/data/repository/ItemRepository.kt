@@ -5,7 +5,7 @@ import com.example.gw2.data.model.ItemDetail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class ItemRepository(private val api: IGw2Api) {
+class ItemRepository(val api: IGw2Api) {
 
     private var allItemsCache: List<ItemDetail>? = null
 

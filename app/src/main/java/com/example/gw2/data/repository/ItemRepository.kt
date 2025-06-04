@@ -7,6 +7,15 @@ import kotlinx.coroutines.withContext
 
 class ItemRepository(val api: IGw2Api) {
 
+    suspend fun getAllItemIds(): List<Int> {
+        return api.getAllItemIds()
+    }
+
+    suspend fun getItemsByIds(ids: List<Int>): List<ItemDetail> {
+        // La API espera “ids=1,2,3…”
+        return api.getItemsByIds(ids.joinToString(","))
+    }
+
     private var allItemsCache: List<ItemDetail>? = null
 
     /**
@@ -27,7 +36,7 @@ class ItemRepository(val api: IGw2Api) {
                 // 1) Pedimos todos los IDs
                 val allIds = api.getAllItemIds()
                 // 2) Dividimos en trozos de 200 para no explotar la URL
-                val chunkedIds = allIds.chunked(200).take(100)
+                val chunkedIds = allIds.chunked(200).take(10)
                 val allItems = mutableListOf<ItemDetail>()
                 var loaded = 0
 

@@ -2,37 +2,32 @@
 
 package com.example.gw2.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.gw2.data.RetrofitInstance
 import com.example.gw2.data.repository.ItemRepository
+import com.example.gw2.presentation.auth.LoginScreen
+import com.example.gw2.presentation.components.BottomNavigationBar
 import com.example.gw2.presentation.home.HomeScreen
 import com.example.gw2.presentation.home.HomeViewModel
 import com.example.gw2.presentation.screens.DetailScreen
 import com.example.gw2.presentation.screens.LoadingScreen
-import com.example.gw2.presentation.screens.LoginScreen
 import com.example.gw2.presentation.screens.ProfileScreen
+import com.example.gw2.presentation.utils.HomeViewModelFactory
 import com.example.gw2.utils.ItemViewModel
 import com.example.gw2.utils.ItemViewModelFactory
 import com.example.gw2.utils.SplashViewModel
-import kotlinx.coroutines.launch
-import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.ViewModelProvider
-import com.example.gw2.presentation.utils.HomeViewModelFactory
+import kotlinx.coroutines.delay
 
-/**
- * Navigation:
- *  • "splash"  → LoadingScreen con SplashViewModel. Cuando isLoadingComplete==true → "login".
- *  • "login"   → LoginScreen. Al completar login → "home".
- *  • "home"    → HomeScreen(homeVm, itemVm, onItemClick). Con BottomBar.
- *  • "detail/{itemId}" → DetailScreen(itemId).
- *  • "profile" → ProfileScreen(onLogout). Con BottomBar.
- */
 @Composable
 fun Navigation(
     navController: NavHostController,
@@ -41,14 +36,13 @@ fun Navigation(
     NavHost(
         navController = navController,
         startDestination = "splash",
-        modifier = androidx.compose.ui.Modifier.padding(padding)
+        modifier = Modifier.padding(padding)
     ) {
-        // 1) Splash
+        // ————— 1) Splash —————
         composable("splash") {
-            // Creamos SplashViewModel usando un Factory anónimo
             val splashVm: SplashViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
-                    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T {
                         @Suppress("UNCHECKED_CAST")
                         return SplashViewModel(ItemRepository(RetrofitInstance.api)) as T
                     }
@@ -56,13 +50,19 @@ fun Navigation(
             )
 
             val currentCount by splashVm.currentCount.collectAsState()
-            val totalCount by splashVm.totalCount.collectAsState()
-            val isComplete by splashVm.isLoadingComplete.collectAsState()
+            val totalCount   by splashVm.totalCount.collectAsState()
+            val isComplete   by splashVm.isLoadingComplete.collectAsState()
 
             LoadingScreen(
                 currentCount = currentCount,
                 totalCount = totalCount
             )
+
+            LaunchedEffect(Unit) {
+                // Delay breve para que pinte el primer frame
+                delay(200L)
+                splashVm.loadAllItems()
+            }
 
             LaunchedEffect(isComplete) {
                 if (isComplete) {
@@ -73,10 +73,10 @@ fun Navigation(
             }
         }
 
-        // 2) Login
+        // ————— 2) Login —————
         composable("login") {
             LoginScreen(
-                onLoggedWithEmail = { _ ->
+                onLoggedWithEmail = {
                     navController.navigate("home") {
                         popUpTo("login") { inclusive = true }
                     }
@@ -94,42 +94,60 @@ fun Navigation(
             )
         }
 
-        // 3) Home (aquí inyectamos HomeViewModel + ItemViewModel + onItemClick)
+        // ————— 3) Home con bottomBar —————
         composable("home") {
-            // Creamos el repositorio antes de la fábrica
-            val itemRepository = ItemRepository(RetrofitInstance.api)
+            // Preparamos repositorio y ViewModels
+            val repo = ItemRepository(RetrofitInstance.api)
+            val homeVm: HomeViewModel = viewModel(factory = HomeViewModelFactory(repo))
+            val itemVm: ItemViewModel = viewModel(factory = ItemViewModelFactory(repo))
 
-            // Ahora la fábrica recibe un ItemRepository, tal como definimos en HomeViewModelFactory
-            val homeVm: HomeViewModel = viewModel(
-                factory = HomeViewModelFactory(itemRepository)
-            )
-
-            val itemVm: ItemViewModel = viewModel(
-                factory = ItemViewModelFactory(itemRepository)
-            )
-
-            HomeScreen(
-                homeViewModel = homeVm,
-                itemViewModel = itemVm,
-                onItemClick = { itemId: Int ->
-                    navController.navigate("detail/$itemId")
+            // Envolvemos HomeScreen en un Scaffold para que aparezca la bottom bar
+            androidx.compose.material3.Scaffold(
+                bottomBar = {
+                    BottomNavigationBar(navController = navController)
                 }
-            )
+            ) { innerPadding ->
+                Box(modifier = Modifier.padding(innerPadding)) {
+                    HomeScreen(
+                        homeViewModel = homeVm,
+                        itemViewModel = itemVm,
+                        onItemClick = { itemId ->
+                            navController.navigate("detail/$itemId")
+                        }
+                    )
+                }
+            }
         }
 
-        // 4) DetailScreen (recibe itemId por argumento de ruta)
+        // ————— 4) Detail con bottomBar —————
         composable("detail/{itemId}") { backStackEntry ->
             val itemId = backStackEntry.arguments?.getString("itemId")?.toIntOrNull() ?: 0
-            DetailScreen(itemId = itemId.toString())
+            androidx.compose.material3.Scaffold(
+                bottomBar = {
+                    BottomNavigationBar(navController = navController)
+                }
+            ) { innerPadding ->
+                Box(modifier = Modifier.padding(innerPadding)) {
+                    DetailScreen(itemId = itemId.toString())
+                }
+            }
         }
 
-        // 5) ProfileScreen
+        // ————— 5) Profile con bottomBar —————
         composable("profile") {
-            ProfileScreen(onLogout = {
-                navController.navigate("login") {
-                    popUpTo("home") { inclusive = true }
+            androidx.compose.material3.Scaffold(
+                bottomBar = {
+                    BottomNavigationBar(navController = navController)
                 }
-            })
+            ) { innerPadding ->
+                Box(modifier = Modifier.padding(innerPadding)) {
+                    ProfileScreen(onLogout = {
+                        navController.navigate("login") {
+                            popUpTo("home") { inclusive = true }
+                        }
+                    })
+                }
+            }
         }
     }
 }

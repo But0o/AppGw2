@@ -1,5 +1,5 @@
 // app/src/main/java/com/example/gw2/presentation/screens/LoginScreen.kt
-package com.example.gw2.presentation.screens
+package com.example.gw2.presentation.auth
 
 import android.annotation.SuppressLint
 import android.app.Activity

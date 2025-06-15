@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -26,6 +29,11 @@ import com.example.gw2.data.RetrofitInstance
 import com.example.gw2.data.model.ItemDetail
 import com.example.gw2.data.model.RecipeIngredient
 import com.example.gw2.utils.DetailViewModel
+import com.example.gw2.utils.FavoritesViewModel
+import com.example.gw2.utils.FavoritesViewModelFactory
+import com.example.gw2.R
+import com.example.gw2.data.repository.FavoritesRepository
+import com.example.gw2.utils.DetailViewModelFactory
 
 /**
  * DetailScreen: muestra los campos del ítem y, si es Recipe, lista los ingredientes obtenidos
@@ -33,59 +41,48 @@ import com.example.gw2.utils.DetailViewModel
  */
 @Composable
 fun DetailScreen(itemId: String) {
-    // 1) Creamos el DetailViewModel
     val detailViewModel: DetailViewModel = viewModel(
-        factory = DetailViewModel.Factory(RetrofitInstance.api)
+        factory = DetailViewModelFactory(RetrofitInstance.api)
     )
-    // 2) Observamos el estado de UiState
-    val uiState by detailViewModel.itemDetailState.collectAsState()
+    val favoritesViewModel: FavoritesViewModel = viewModel(
+        factory = FavoritesViewModelFactory(
+            FavoritesRepository(),
+            api = RetrofitInstance.api
+        )
+    )
 
-    // 3) Al arrancar, solicitamos la carga del ítem
     LaunchedEffect(itemId) {
-        val idInt = itemId.toIntOrNull() ?: 0
-        if (idInt > 0) {
-            detailViewModel.loadItemById(idInt)
-        }
+        detailViewModel.loadItemById(itemId.toIntOrNull() ?: 0)
+        favoritesViewModel.loadFavorites()
     }
 
-    // 4) Renderizamos Loading / Error / Success
+    val uiState by detailViewModel.itemDetailState.collectAsState()
+
     when (uiState) {
-        is DetailViewModel.UiState.Loading -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFEEEEEE)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Cargando detalle…",
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
-        is DetailViewModel.UiState.Error -> {
-            val message = (uiState as DetailViewModel.UiState.Error).errorMessage
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFFFEEEE)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Error al cargar detalle:\n$message",
-                    color = Color.Red,
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+        is DetailViewModel.UiState.Loading -> LoadingPlaceholder()
+        is DetailViewModel.UiState.Error -> ErrorPlaceholder((uiState as DetailViewModel.UiState.Error).errorMessage)
+
         is DetailViewModel.UiState.Success -> {
-            // 5) Si es Success, extraemos item y lista de ingredientes (puede ser null)
-            val successState = uiState as DetailViewModel.UiState.Success
+            val success = uiState as DetailViewModel.UiState.Success
+
             DetailContent(
-                item = successState.item,
-                recipeIngredients = successState.recipeIngredients
+                item               = success.item,
+                recipeIngredients  = success.recipeIngredients,
+                favoritesViewModel = favoritesViewModel
             )
         }
+    }
+}
+
+
+@Composable private fun LoadingPlaceholder() {
+    Box(Modifier.fillMaxSize().background(Color(0xFFEEEEEE)), contentAlignment = Alignment.Center) {
+        Text("Cargando detalle…", style = MaterialTheme.typography.bodyLarge)
+    }
+}
+@Composable private fun ErrorPlaceholder(msg:String) {
+    Box(Modifier.fillMaxSize().background(Color(0xFFFFEEEE)), contentAlignment = Alignment.Center) {
+        Text("Error:\n$msg", color=Color.Red, style = MaterialTheme.typography.bodyLarge)
     }
 }
 
@@ -93,212 +90,172 @@ fun DetailScreen(itemId: String) {
 @Composable
 private fun DetailContent(
     item: ItemDetail,
-    recipeIngredients: List<RecipeIngredient>? // si no es Recipe o no tiene ingredientes, será null
+    recipeIngredients: List<RecipeIngredient>?,
+    favoritesViewModel: FavoritesViewModel
 ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // ————————— 1) Tarjeta Superior: Imagen + Nombre + Tipo/Subtipo + Nivel —————————
+        // ————— 1) Tarjeta Superior: Imagen + Nombre + Nivel + Corazón —————
         Card(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp),
             shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            elevation = CardDefaults.cardElevation(6.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = item.icon),
-                    contentDescription = item.name,
-                    modifier = Modifier
-                        .size(170.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column {
-                    Text(
-                        text = item.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
+            Box(Modifier.fillMaxSize()) {
+                Row(
+                    Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Image(
+                        painter = rememberAsyncImagePainter(item.icon),
+                        contentDescription = item.name,
+                        modifier = Modifier
+                            .size(120.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = buildString {
-                            append(item.type)
-                            item.details?.type?.let { subtype ->
-                                append(" – $subtype")
-                            }
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.DarkGray,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Nivel requerido: ${item.level}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    Spacer(Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = item.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = buildString {
+                                append(item.type)
+                                item.details?.type?.let { append(" – $it") }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.DarkGray
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Nivel requerido: ${item.level}",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
                 }
+
+                // Corazón de favorito en la esquina
+                FavoriteToggleButton(
+                    item = item,
+                    favoritesViewModel = favoritesViewModel,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // ————————— 2) + 3) Card de fondo más oscura que abraza a las dos secciones interiores —————————
+        // ————— 2+3) Wrapper gris para detalles + ingredientes —————
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFCCCCCC)) // Gris oscuro de fondo
+            elevation = CardDefaults.cardElevation(6.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFCCCCCC))
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-
-                // ————— 2) Tarjeta Intermedia: Rareza + Tipo de Juego + (Daño/Poder/Defensa) + Atributos —————
+            Column(Modifier.padding(16.dp)) {
+                // ——— a) Detalles (rareza, tipos, daño/poder/defensa, atributos) ———
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    elevation = CardDefaults.cardElevation(4.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        // a) Rareza
+                    Column(Modifier.padding(16.dp)) {
+                        // Rareza
                         Text(
                             text = "Rareza: ${item.rarity.replaceFirstChar { it.uppercaseChar() }}",
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = MaterialTheme.typography.bodyLarge.fontSize
+                            fontWeight = FontWeight.SemiBold
                         )
+                        Spacer(Modifier.height(6.dp))
 
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // b) Tipo de juego
+                        // Tipo de juego
                         val tipos = item.game_types
-                            ?.joinToString(separator = " – ") { it.replaceFirstChar { c -> c.uppercaseChar() } }
+                            ?.joinToString(" – ") { it.replaceFirstChar { c -> c.uppercaseChar() } }
                             ?: "No disponible"
-                        Text(
-                            text = "Tipo de juego: $tipos",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = MaterialTheme.typography.bodyLarge.fontSize
-                        )
+                        Text("Tipo de juego: $tipos", style = MaterialTheme.typography.bodyMedium)
+                        Spacer(Modifier.height(6.dp))
 
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // c) Sección “Daño / Poder / Defensa” (solo si alguno existe)
+                        // Daño / Poder / Defensa
                         val details = item.details
-                        val hasDamage = details?.damage_type != null
-                        val hasPower = (details?.min_power != null && details.max_power != null)
-                        val hasDefense = details?.defense != null
-
-                        if (hasDamage || hasPower || hasDefense) {
-                            if (hasDamage) {
-                                val dmg = details!!.damage_type!!
-                                Text(
-                                    text = "Tipo de daño: ${dmg.replaceFirstChar { it.uppercaseChar() }}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = MaterialTheme.typography.bodyLarge.fontSize
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                            }
-                            if (hasPower) {
-                                val minPower = details!!.min_power!!
-                                val maxPower = details.max_power!!
-                                Text(
-                                    text = "Poder: $minPower – $maxPower",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = MaterialTheme.typography.bodyLarge.fontSize
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                            }
-                            if (hasDefense) {
-                                val def = details!!.defense!!
-                                Text(
-                                    text = "Defensa: $def",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = MaterialTheme.typography.bodyLarge.fontSize
-                                )
-                                Spacer(modifier = Modifier.height(6.dp))
-                            }
+                        if (details?.damage_type != null) {
+                            Text("Tipo de daño: ${details.damage_type.replaceFirstChar { it.uppercaseChar() }}",
+                                style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        if (details?.min_power != null && details.max_power != null) {
+                            Text("Poder: ${details.min_power} – ${details.max_power}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(6.dp))
+                        }
+                        if (details?.defense != null) {
+                            Text("Defensa: ${details.defense}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(6.dp))
                         }
 
-                        // d) Atributos (con encabezado “Atributos” si existen)
-                        details?.infix_upgrade?.attributes?.let { attributesList ->
-                            if (attributesList.isNotEmpty()) {
-                                // → Aquí agregamos el mini título “Atributos”
-                                Text(
-                                    text = "Atributos:",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    modifier = Modifier.padding(bottom = 4.dp)
-                                )
-                                Column {
-                                    attributesList.forEach { attr ->
-                                        Box(
-                                            modifier = Modifier
-                                                .background(
-                                                    color = MaterialTheme.colorScheme.primary.copy(
-                                                        alpha = 0.15f
-                                                    ),
-                                                    shape = RoundedCornerShape(16.dp)
-                                                )
-                                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                        ) {
-                                            Text(
-                                                text = "${attr.attribute.replaceFirstChar { it.uppercaseChar() }} ${attr.modifier}",
-                                                style = MaterialTheme.typography.bodySmall
+                        // Atributos (solo si hay)
+                        details?.infix_upgrade?.attributes?.takeIf { it.isNotEmpty() }?.let { attrs ->
+                            Text("Atributos:", fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.height(4.dp))
+                            Column {
+                                attrs.forEach { attr ->
+                                    Box(
+                                        modifier = Modifier
+                                            .background(
+                                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                                shape = RoundedCornerShape(16.dp)
                                             )
-                                        }
-                                        Spacer(modifier = Modifier.height(4.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text("${attr.attribute.replaceFirstChar { it.uppercaseChar() }} ${attr.modifier}",
+                                            style = MaterialTheme.typography.bodySmall)
                                     }
+                                    Spacer(Modifier.height(4.dp))
                                 }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // ————— 3) Tarjeta Inferior: Ingredientes de Crafteo (como lista desplazable) —————
-                if (!recipeIngredients.isNullOrEmpty()) {
+                // ——— b) Ingredientes (si receta y tiene ingredientes) ———
+                recipeIngredients?.takeIf { it.isNotEmpty() }?.let { ingrList ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            // Fijamos una altura máxima para que la lista no ocupe toda la pantalla,
-                            // pero sea desplazable si hay muchos ingredientes
                             .heightIn(min = 100.dp, max = 260.dp),
                         shape = RoundedCornerShape(12.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                        elevation = CardDefaults.cardElevation(4.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFEEEEEE))
                     ) {
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                text = "Ingredientes de crafteo:",
+                        Column(Modifier.fillMaxSize()) {
+                            Text("Ingredientes de crafteo:",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                            )
-                            // Usamos LazyColumn para que sea desplazable:
+                                modifier = Modifier.padding(16.dp))
                             LazyColumn(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 16.dp)
                             ) {
-                                items(recipeIngredients) { ingr ->
+                                items(ingrList) { ingr ->
                                     // Cada fila de ingrediente:
                                     val ingredienteDetail by produceState<ItemDetail?>(
                                         initialValue = null,
@@ -367,5 +324,33 @@ private fun DetailContent(
                 }
             }
         }
+    }
+}
+
+
+/** Toggle de favorito en detalle */
+@Composable
+fun FavoriteToggleButton(
+    item: ItemDetail,
+    favoritesViewModel: FavoritesViewModel,
+    modifier: Modifier = Modifier
+) {
+    // 1) Observamos la lista de favoritos
+    val favList by favoritesViewModel.favorites.collectAsState()
+
+    // 2) Calculamos si este ítem está entre ellos
+    val isFav = remember(item.id, favList) { favList.any { it.id == item.id } }
+
+    IconButton(
+        onClick = { favoritesViewModel.toggleFavorite(item) },
+        modifier = modifier
+    ) {
+        Icon(
+            painter = painterResource(
+                id = if (isFav) R.drawable.ic_favorite_24
+                else R.drawable.ic_favorite_border_24
+            ),
+            contentDescription = if (isFav) "Quitar de favoritos" else "Agregar a favoritos"
+        )
     }
 }

@@ -4,10 +4,10 @@
     <selectionStates>
       <SelectionState runConfigName="Gw2.app">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2025-06-04T12:40:55.923111200Z">
+        <DropdownSelection timestamp="2025-06-12T23:19:19.010974200Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Admin\.android\avd\Pixel_9_Pro.avd" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Admin\.android\avd\Pixel_9.avd" />
             </handle>
           </Target>
         </DropdownSelection>

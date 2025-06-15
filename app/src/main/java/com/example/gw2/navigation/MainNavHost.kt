@@ -36,7 +36,8 @@ fun MainNavHost(
                 itemViewModel = itemViewModel,
                 onItemClick = { itemId ->
                     navController.navigate("detail/$itemId")
-                }
+                },
+                favoritesViewModel = TODO()
             )
         }
 
@@ -47,4 +48,3 @@ fun MainNavHost(
         }
     }
 }
-

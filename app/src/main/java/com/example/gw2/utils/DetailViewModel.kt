@@ -60,12 +60,4 @@ class DetailViewModel(private val api: IGw2Api) : ViewModel() {
             }
         }
     }
-
-    /** Factory para crear el ViewModel sin Hilt */
-    class Factory(private val api: IGw2Api) : ViewModelProvider.Factory {
-        @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T {
-            return DetailViewModel(api) as T
-        }
-    }
 }

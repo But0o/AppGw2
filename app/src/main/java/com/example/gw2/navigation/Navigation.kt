@@ -1,14 +1,13 @@
-// app/src/main/java/com/example/gw2/navigation/Navigation.kt
-
 package com.example.gw2.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.*
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -17,16 +16,23 @@ import com.example.gw2.data.RetrofitInstance
 import com.example.gw2.data.repository.ItemRepository
 import com.example.gw2.presentation.auth.LoginScreen
 import com.example.gw2.presentation.components.BottomNavigationBar
+import com.example.gw2.presentation.favorites.FavoritesScreen
 import com.example.gw2.presentation.home.HomeScreen
 import com.example.gw2.presentation.home.HomeViewModel
 import com.example.gw2.presentation.screens.DetailScreen
 import com.example.gw2.presentation.screens.LoadingScreen
 import com.example.gw2.presentation.screens.ProfileScreen
 import com.example.gw2.presentation.utils.HomeViewModelFactory
+import com.example.gw2.utils.FavoritesViewModel
+import com.example.gw2.utils.FavoritesViewModelFactory
 import com.example.gw2.utils.ItemViewModel
 import com.example.gw2.utils.ItemViewModelFactory
 import com.example.gw2.utils.SplashViewModel
-import kotlinx.coroutines.delay
+import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import com.example.gw2.data.repository.FavoritesRepository
 
 @Composable
 fun Navigation(
@@ -38,32 +44,32 @@ fun Navigation(
         startDestination = "splash",
         modifier = Modifier.padding(padding)
     ) {
-        // ————— 1) Splash —————
+        // 1) Splash
         composable("splash") {
+            // 1) instanciamos el ViewModel con tu Factory
             val splashVm: SplashViewModel = viewModel(
                 factory = object : ViewModelProvider.Factory {
+                    @Suppress("UNCHECKED_CAST")
                     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                        @Suppress("UNCHECKED_CAST")
                         return SplashViewModel(ItemRepository(RetrofitInstance.api)) as T
                     }
                 }
             )
 
+            // 2) arrancamos la carga UNA sola vez
+            LaunchedEffect(Unit) {
+                splashVm.loadAllItems()
+            }
+
+            // 3) obtenemos los flujos
             val currentCount by splashVm.currentCount.collectAsState()
             val totalCount   by splashVm.totalCount.collectAsState()
             val isComplete   by splashVm.isLoadingComplete.collectAsState()
 
-            LoadingScreen(
-                currentCount = currentCount,
-                totalCount = totalCount
-            )
+            // 4) UI
+            LoadingScreen(currentCount = currentCount, totalCount = totalCount)
 
-            LaunchedEffect(Unit) {
-                // Delay breve para que pinte el primer frame
-                delay(200L)
-                splashVm.loadAllItems()
-            }
-
+            // 5) cuando termine, navegamos a login
             LaunchedEffect(isComplete) {
                 if (isComplete) {
                     navController.navigate("login") {
@@ -73,7 +79,8 @@ fun Navigation(
             }
         }
 
-        // ————— 2) Login —————
+
+        // 2) Login
         composable("login") {
             LoginScreen(
                 onLoggedWithEmail = {
@@ -94,53 +101,77 @@ fun Navigation(
             )
         }
 
-        // ————— 3) Home con bottomBar —————
+        // 3) Home
         composable("home") {
-            // Preparamos repositorio y ViewModels
             val repo = ItemRepository(RetrofitInstance.api)
-            val homeVm: HomeViewModel = viewModel(factory = HomeViewModelFactory(repo))
-            val itemVm: ItemViewModel = viewModel(factory = ItemViewModelFactory(repo))
-
-            // Envolvemos HomeScreen en un Scaffold para que aparezca la bottom bar
-            androidx.compose.material3.Scaffold(
-                bottomBar = {
-                    BottomNavigationBar(navController = navController)
+            val homeVm: HomeViewModel = viewModel(
+                factory = HomeViewModelFactory(repo)
+            )
+            val itemVm: ItemViewModel = viewModel(
+                factory = ItemViewModelFactory(repo)
+            )
+            val favVm: FavoritesViewModel = viewModel(
+                factory = FavoritesViewModelFactory(
+                    repository = FavoritesRepository(),
+                    api = RetrofitInstance.api
+                )
+            )
+            LaunchedEffect(FirebaseAuth.getInstance().currentUser) {
+                if (FirebaseAuth.getInstance().currentUser != null) {
+                    favVm.loadFavorites()
                 }
-            ) { innerPadding ->
-                Box(modifier = Modifier.padding(innerPadding)) {
+            }
+
+            Scaffold(bottomBar = { BottomNavigationBar(navController) }) { inner ->
+                Box(Modifier.padding(inner)) {
                     HomeScreen(
-                        homeViewModel = homeVm,
-                        itemViewModel = itemVm,
-                        onItemClick = { itemId ->
-                            navController.navigate("detail/$itemId")
-                        }
+                        homeViewModel      = homeVm,
+                        itemViewModel      = itemVm,
+                        favoritesViewModel = favVm,
+                        onItemClick        = { id -> navController.navigate("detail/$id") }
                     )
                 }
             }
         }
 
-        // ————— 4) Detail con bottomBar —————
+        // 4) Favorites
+        composable("favorites") {
+            val favVm: FavoritesViewModel = viewModel(
+                factory = FavoritesViewModelFactory(
+                    repository = FavoritesRepository(),
+                    api = RetrofitInstance.api
+                )
+            )
+            LaunchedEffect(FirebaseAuth.getInstance().currentUser) {
+                if (FirebaseAuth.getInstance().currentUser != null) {
+                    favVm.loadFavorites()
+                }
+            }
+
+            Scaffold(bottomBar = { BottomNavigationBar(navController) }) { inner ->
+                Box(Modifier.padding(inner)) {
+                    FavoritesScreen(
+                        favoritesViewModel = favVm,
+                        onItemClick        = { id -> navController.navigate("detail/$id") }
+                    )
+                }
+            }
+        }
+
+        // 5) Detail
         composable("detail/{itemId}") { backStackEntry ->
             val itemId = backStackEntry.arguments?.getString("itemId")?.toIntOrNull() ?: 0
-            androidx.compose.material3.Scaffold(
-                bottomBar = {
-                    BottomNavigationBar(navController = navController)
-                }
-            ) { innerPadding ->
-                Box(modifier = Modifier.padding(innerPadding)) {
+            Scaffold(bottomBar = { BottomNavigationBar(navController) }) { inner ->
+                Box(Modifier.padding(inner)) {
                     DetailScreen(itemId = itemId.toString())
                 }
             }
         }
 
-        // ————— 5) Profile con bottomBar —————
+        // 6) Profile
         composable("profile") {
-            androidx.compose.material3.Scaffold(
-                bottomBar = {
-                    BottomNavigationBar(navController = navController)
-                }
-            ) { innerPadding ->
-                Box(modifier = Modifier.padding(innerPadding)) {
+            Scaffold(bottomBar = { BottomNavigationBar(navController) }) { inner ->
+                Box(Modifier.padding(inner)) {
                     ProfileScreen(onLogout = {
                         navController.navigate("login") {
                             popUpTo("home") { inclusive = true }

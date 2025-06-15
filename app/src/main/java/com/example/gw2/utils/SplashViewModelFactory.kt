@@ -5,13 +5,13 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.CreationExtras
 import com.example.gw2.data.repository.ItemRepository
 
-class ItemViewModelFactory(
+class SplashViewModelFactory(
     private val repository: ItemRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return ItemViewModel(repository) as T
+        return SplashViewModel(repository) as T
     }
 
     override fun <T : ViewModel> create(

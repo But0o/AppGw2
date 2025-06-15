@@ -25,12 +25,15 @@ import androidx.compose.ui.unit.sp
 import coil.compose.rememberAsyncImagePainter
 import com.example.gw2.data.model.ItemDetail
 import com.example.gw2.presentation.components.SearchBar
+import com.example.gw2.utils.FavoritesViewModel
 import com.example.gw2.utils.ItemViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun HomeScreen(
     homeViewModel: HomeViewModel,
     itemViewModel: ItemViewModel,
+    favoritesViewModel: FavoritesViewModel,
     onItemClick: (Int) -> Unit
 ) {
     // Observamos el estado de búsqueda y resultados en ItemViewModel
@@ -39,6 +42,9 @@ fun HomeScreen(
 
     // Observamos el flujo de ítems recomendados en HomeViewModel
     val recommendedItems by homeViewModel.recommendedItems.collectAsState()
+    val favorites  by favoritesViewModel.favorites.collectAsState()
+    val user = FirebaseAuth.getInstance().currentUser
+    val favoriteItems by favoritesViewModel.favorites.collectAsState()
 
     Column(
         modifier = Modifier
@@ -101,22 +107,28 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 4) Sección de “Objetos Favoritos” (vacía por el momento)
-            Text(
-                text = "Objetos Favoritos",
+            Text("Objetos Favoritos",
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 ),
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-            LazyRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(emptyList<ItemDetail>()) { item ->
-                    ItemCard(item = item, onClick = onItemClick)
+            if (FirebaseAuth.getInstance().currentUser == null) {
+                Text("Inicia sesión para guardar favoritos")
+            } else if (favoriteItems.isEmpty()) {
+                Text("Todavía no tienes favoritos.")
+            } else {
+                val firstTen = favoriteItems.take(5)
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(240.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(firstTen) { item ->
+                        ItemCard(item = item, onClick = onItemClick)
+                    }
                 }
             }
         }
